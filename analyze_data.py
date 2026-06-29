@@ -18,26 +18,11 @@ def classify_conflict(left_emo, right_emo):
         return 'low'
 
 
-# Common number of steps for time-normalization (standard mouse-tracking practice;
-# Freeman & Ambady, 2010; Kieslich et al., 2018; Spivey et al., 2005).
 N_STEPS = 101
 
 
 def calculate_auc(trial_data, n_steps=N_STEPS):
-    """Signed, time-normalized trajectory AUC as specified in the DAMP paradigm
-    (manuscript Section 4.2).
 
-    AUC is the integral of the *perpendicular* deviation of the cursor path from
-    the ideal straight line connecting the start and the click endpoint. Per
-    standard mouse-tracking practice the trajectory is first time-normalized to a
-    common number of steps, and the SIGN of the deviation is retained: positive
-    when the cursor deviates TOWARD the non-chosen alternative (the competitor),
-    negative when it deviates away from it. The competitor side is inferred from
-    the endpoint, which remaps every trial onto a common (competitor-positive)
-    frame regardless of the chosen side. Integration is over the normalized
-    progress index s in [0, 1], so AUC is a mean signed perpendicular deviation
-    (in screen px) rather than a quantity that scales with raw movement duration.
-    """
     x = trial_data['x'].values.astype(float)
     y = trial_data['y'].values.astype(float)
     t = trial_data['t_rel'].values.astype(float)
@@ -46,7 +31,6 @@ def calculate_auc(trial_data, n_steps=N_STEPS):
     if t[-1] <= t[0]:
         return 0.0
 
-    # Time-normalize to a common number of steps.
     s = (t - t[0]) / (t[-1] - t[0])
     grid = np.linspace(0.0, 1.0, n_steps)
     xn = np.interp(grid, s, x)
@@ -60,9 +44,6 @@ def calculate_auc(trial_data, n_steps=N_STEPS):
         return 0.0
     line_unitvec = line_vec / line_len
 
-    # The non-chosen alternative sits opposite the chosen endpoint. Multiplying
-    # the signed cross product by `side` makes "toward the competitor" positive
-    # for both left- and right-side choices (i.e. remap to a common side).
     side = np.sign(end[0] - start[0])
     if side == 0:
         side = 1.0
@@ -77,10 +58,7 @@ def calculate_auc(trial_data, n_steps=N_STEPS):
 
 
 def bimodality_coefficient(values):
-    """Sample-corrected Sarle bimodality coefficient (BC). BC > ~0.555 suggests a
-    non-unimodal / mixture distribution. Used to check, per Section 4.2, whether
-    the high-conflict AUC distribution is a mixture of near-straight and
-    abruptly-reversing paths rather than a single shape summarized by its mean."""
+
     v = np.asarray(values, dtype=float)
     v = v[~np.isnan(v)]
     n = v.size
@@ -90,8 +68,8 @@ def bimodality_coefficient(values):
     if sd == 0:
         return np.nan
     z = (v - v.mean()) / sd
-    g1 = np.mean(z ** 3)            # skewness
-    g2 = np.mean(z ** 4) - 3.0      # excess kurtosis
+    g1 = np.mean(z ** 3)
+    g2 = np.mean(z ** 4) - 3.0
     return (g1 ** 2 + 1.0) / (g2 + 3.0 * (n - 1) ** 2 / ((n - 2) * (n - 3)))
 
 
@@ -185,10 +163,7 @@ def run_advanced_analysis(base_data_path="data"):
             plt.savefig(os.path.join(session_path, 'emotion_choice_frequency.png'), dpi=150)
             plt.close()
 
-        # --- Decision Conflict Index (manuscript Sec. 4.2) -------------------
-        # The high/low-conflict contrast is computed on the MAIN experimental
-        # block only. SWAP trials feed the RSI analysis; CALIBRATION and the
-        # deprecated SRI trials are not part of the conflict contrast.
+
         if 'type' in df_d.columns:
             main_d = df_d[~df_d['type'].isin(['SWAP', 'CALIBRATION', 'SRI'])]
         else:
@@ -199,24 +174,17 @@ def run_advanced_analysis(base_data_path="data"):
         auc_high = auc_high_vals.mean()
         auc_low = auc_low_vals.mean()
 
-        # Primary contrast: the difference is preferred over the heavy-tailed
-        # ratio for group-level inference (Sec. 4.2).
         dAUC = auc_high - auc_low
-        # Ratio form as defined in the manuscript; fragile, reported alongside dAUC.
+
         DCI = (auc_high - auc_low) / auc_low if (pd.notna(auc_low) and auc_low != 0) else np.nan
-        # Distributional check: high-conflict AUC is typically a mixture of
-        # near-straight and abruptly-reversing paths (Sec. 4.2).
+
         BC_high = bimodality_coefficient(auc_high_vals.values)
 
-        # RSI (Sec. 4.3): proportion of VALID SWAP trials with a maintained
-        # choice. No-response swaps (is_swap == -1) are excluded from N_swap.
+
         sw = df[df['type'] == 'SWAP']
         sw_valid = sw[sw['is_swap'].isin([0, 1])]
         RSI = (sw_valid['is_swap'] == 0).mean() if not sw_valid.empty else np.nan
 
-        # FLIP — recorded but EXCLUDED from the primary framework (Sec. 4): low
-        # theoretical specificity (cannot separate cognitive conflict from
-        # random motor noise). Kept for possible exploratory use only.
         FLIP = df_d['flip'].mean() if not df_d.empty else np.nan
 
         avg_auc = df_d['auc'].mean() if not df_d.empty else 0
@@ -345,12 +313,6 @@ def run_advanced_analysis(base_data_path="data"):
 
 
 
-        # ---- Indices dashboard ------------------------------------------------
-        # Each index gets its OWN axis: the scales differ by orders of magnitude
-        # (AUC in px, DCI a ratio that can reach +/-10, RSI in [0,1]), so a single
-        # shared-axis bar chart both hides indices and overlaps the value labels.
-        # Model adjudication keys off the SIGN of the robust difference contrast
-        # ΔAUC = AUC_high - AUC_low (Sec. 4.2), not the fragile ratio DCI.
         if pd.notna(dAUC):
             verdict = "LCA (Model 2)" if dAUC > 0 else "minimal DDM (Model 1)"
             verdict_short = "-> LCA" if dAUC > 0 else "-> DDM"
@@ -380,7 +342,6 @@ def run_advanced_analysis(base_data_path="data"):
         fig.suptitle(f'Decision Dynamics Profile — Session: {session_name}',
                      fontsize=13, fontweight='bold')
 
-        # (0,0) Signed AUC means — the two quantities the contrast is built on.
         ax = axes[0, 0]
         b = ax.bar(['high\n(Pos-Neg)', 'low\n(Neutral-X)'], [auc_high, auc_low],
                    color=['#b8412f', '#2e6e9e'], width=0.6, edgecolor='black', linewidth=0.6)
@@ -389,7 +350,6 @@ def run_advanced_analysis(base_data_path="data"):
         ax.set_ylabel('AUC (px; toward competitor +)', fontsize=9)
         _headroom(ax); _annot(ax, b)
 
-        # (0,1) ΔAUC — primary contrast; its sign adjudicates the two models.
         ax = axes[0, 1]
         b = ax.bar(['ΔAUC'], [dAUC],
                    color=('#3a8a5f' if (pd.notna(dAUC) and dAUC > 0) else '#8a93a0'),
@@ -399,7 +359,6 @@ def run_advanced_analysis(base_data_path="data"):
         ax.set_ylabel('px (primary contrast)', fontsize=9)
         _headroom(ax); _annot(ax, b)
 
-        # (0,2) DCI ratio — reported but fragile when AUC_low < 0.
         ax = axes[0, 2]
         b = ax.bar(['DCI'], [DCI], color='#c79a3a', width=0.5, edgecolor='black', linewidth=0.6)
         ax.axhline(0, color='black', lw=1)
@@ -407,7 +366,6 @@ def run_advanced_analysis(base_data_path="data"):
         ax.set_ylabel('ratio (fragile if AUC_low<0)', fontsize=9)
         _headroom(ax); _annot(ax, b, "{:.2f}")
 
-        # (1,0) RSI — choice stability vs chance.
         ax = axes[1, 0]
         b = ax.bar(['RSI'], [RSI], color='#4c72b0', width=0.5, edgecolor='black', linewidth=0.6)
         ax.axhline(0.5, color='red', ls='--', alpha=0.7, lw=1.2)
@@ -417,7 +375,6 @@ def run_advanced_analysis(base_data_path="data"):
         ax.set_ylabel('proportion maintained', fontsize=9)
         _annot(ax, b, "{:.2f}")
 
-        # (1,1) FLIP — exploratory, excluded from the primary framework (Sec. 4).
         ax = axes[1, 1]
         b = ax.bar(['FLIP'], [FLIP], color='#bdbdbd', width=0.5, edgecolor='black', linewidth=0.6)
         ax.axhline(0, color='black', lw=1)
@@ -425,7 +382,6 @@ def run_advanced_analysis(base_data_path="data"):
         ax.set_ylabel('mean centerline crossings', fontsize=9)
         _headroom(ax); _annot(ax, b, "{:.2f}")
 
-        # (1,2) Text summary: model adjudication + trial counts + bimodality.
         ax = axes[1, 2]; ax.axis('off')
         bc_txt = f"{BC_high:.2f}" if pd.notna(BC_high) else "n/a"
         ax.text(0.0, 0.98,
