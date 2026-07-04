@@ -1,30 +1,4 @@
-"""
-DAMP — SECOND, competing generative model: a leaky competing accumulator (LCA;
-Usher & McClelland, 2001) with lateral inhibition and a salience-weighted input.
-No human data is involved. This model is the principled counterpart to the minimal
-drift-diffusion model in dampsimulation.py: the two make OPPOSITE, falsifiable
-predictions about the sign of DCI, and empirical data are needed to arbitrate
-(model comparison in the sense of Wilson & Collins, 2019).
 
-Two rectified accumulators y_L, y_R (>=0) race to drive the cursor left/right:
-    dy_i = ( I_i - k*y_i - w*y_{other} ) dt + sigma*dW ,   y_i = max(y_i, 0)
-    I_i  = I0 + beta*v_i + gamma*|v_i|
-        I0     baseline drive (a neutral option is still chosen sometimes)
-        beta   evaluative/approach weight (positive valence -> more drive)
-        gamma  SALIENCE-CAPTURE weight: the |v_i| term gives BOTH strongly
-               valenced stimuli extra drive regardless of sign (Ohman & Mineka,
-               2001; Pessoa, 2005). This is the explicit hypothesis knob.
-        k      leak ; w lateral inhibition.
-
-Why this predicts DCI>0 (for gamma>0). For a Positive-Negative pair both options
-get the +gamma*|v| boost, so both accumulators are driven hard and fight through
-mutual inhibition -> prolonged competition -> curved trajectory -> high AUC. For a
-Neutral-X pair only one option is salient -> it wins quickly -> straight -> low AUC.
-At gamma=0 the salience term vanishes and the model reduces to an approach race in
-which the Positive-Negative pair (largest evaluative gap) resolves FASTEST -> DCI<=0,
-exactly like the minimal DDM. Thus the sign of DCI is governed by gamma, and the two
-models bracket the empirical question.
-"""
 import numpy as np, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 exec(open(os.path.join(HERE, "dampsimulation.py"), encoding="utf-8").read().split("if __name__")[0])
@@ -38,10 +12,6 @@ GAMMA   = 0.6
 LEAN_SCALE = 1.3
 
 def lca_latent(vL, vR, gamma):
-    # Input = baseline + evaluative drive + salience capture. The gamma*|v| term gives BOTH
-    # valenced stimuli high drive, so a Positive-Negative pair has two high, near-equal inputs
-    # -> a slow winner-take-all fight through lateral inhibition -> curved trajectory (high AUC).
-    # A Neutral-X pair has only one high input -> fast, straight resolution (low AUC).
     I_L = I0 + BETA_A * vL + gamma * abs(vL)
     I_R = I0 + BETA_A * vR + gamma * abs(vR)
     n = int(TMAX / DT)

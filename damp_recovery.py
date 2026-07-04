@@ -1,17 +1,4 @@
-"""
-Parameter recovery for the minimal DDM (Model 1), Wilson & Collins (2019), rule 5.
-No human data. We generate synthetic datasets with KNOWN parameters (drift weight
-beta, diffusion noise sigma), fit the model back from summary statistics, and check
-that the recovered parameters track the true ones. Successful recovery shows the
-model is identifiable from the observables the paradigm collects.
 
-The minimal model has no leak, so the latent path is a drift-diffusion random walk
-and can be simulated in closed vectorised form (exact, fast). Summary statistics
-used for fitting: mean AUC, SD of AUC, mean normalised RT (these separate beta --
-which speeds commitment and straightens paths -- from sigma -- which adds trajectory
-variability). Fitting = nearest point on a (beta, sigma) grid in standardised
-summary space.
-"""
 import numpy as np, os, matplotlib.pyplot as plt, matplotlib as mpl
 import dampsimulation as ds
 

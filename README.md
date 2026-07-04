@@ -175,6 +175,7 @@ participants via `pilot_template.json` (auto-generated if absent).
 > Mayer, A. (2026). *The DAMP (Dynamic Affective Micro-Preference) Paradigm:
 > A Methodological and Computational Framework for Tracing Affective Choice Dynamics.*
 > Preprint, OSF. DOI: https://doi.org/10.17605/OSF.IO/3N8JW
+> Preprint, Zenodo. DOI: https://doi.org/10.5281/zenodo.21195647
 
 ## Disclaimer
 

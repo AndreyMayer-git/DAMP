@@ -3,7 +3,6 @@ import re
 from PIL import Image
 from scipy.spatial import KDTree
 
-# Extended list of base colors
 COLORS_MAP = {
     "Red": (255, 0, 0),
     "Green": (0, 128, 0),

@@ -8,12 +8,6 @@ import numpy as np
 import sounddevice as sd
 from psychopy import visual, core, event, gui
 
-# Participant-facing text in three languages, selected at startup.
-# NOTE: This is a TEMPLATE / demonstration framework. The consent text below is
-# an ethics/legal DRAFT only — the framework has no IRB/ethics approval and is not
-# used to collect data. Anyone adapting it for real use must obtain ethics-board
-# approval, fill in the [placeholders], and have a native speaker verify the
-# English and Japanese versions.
 LANG = {
     'English': {
         'consent_title': 'Informed Consent — TEMPLATE',
@@ -139,22 +133,9 @@ LANG = {
 
 
 class NeuroScienceSystem:
-    """
-    Core experimental system for the DAMP paradigm
-    (Dynamic Affective Micro-Preference Paradigm).
-
-    Handles the full experimental pipeline:
-    - Informed consent and participant registration
-    - Motor calibration
-    - Sequential ultra-brief stimulus presentation (18-30 ms)
-    - Continuous mouse trajectory recording at 100 Hz
-    - SWAP trial management
-    - Data export (results.csv, trajectories.csv)
-    """
 
     def __init__(self):
 
-        # Select interface language first — consent and all on-screen prompts use it
         lang_field = {'Language / Язык / 言語': list(LANG.keys())}
         lang_dlg = gui.DlgFromDict(lang_field, title='Language')
         if not lang_dlg.OK:
@@ -162,10 +143,6 @@ class NeuroScienceSystem:
         self.lang = lang_field['Language / Язык / 言語']
         self.L = LANG[self.lang]
         self.show_consent()
-
-        # Stimulus presentation mode:
-        # True  = fixed pilot template (same stimuli and timing for all participants)
-        # False = full randomization (each session independently randomized)
         self.use_fixed_stimuli = True
         self.pilot_template_file = "pilot_template.json"
 
@@ -186,7 +163,6 @@ class NeuroScienceSystem:
         self.isi_min_s = 0.08
         self.isi_max_s = 0.15
 
-        # Participant metadata — collected via GUI dialog before session start
         self.info = {
             'ID': '',
             'Age': '',
@@ -195,40 +171,28 @@ class NeuroScienceSystem:
         dlg = gui.DlgFromDict(self.info, title=self.L['intake_title'])
         if not dlg.OK: core.quit()
 
-        # Create unique session ID and output directory
         self.session_id = f"{self.info['ID']}_S{time.strftime('%Y%m%d_%H%M%S')}"
         self.path = f"data/{self.session_id}"
         if not os.path.exists(self.path): os.makedirs(self.path)
-
-        # Initialize full-screen black window (units in pixels)
         self.win = visual.Window(fullscr=True, units="pix", color=[-1, -1, -1], checkTiming=False)
 
-        # Scale stimulus size and position offset to actual screen resolution
         stim_px = int(min(self.win.size) * 0.90)
         self.stim_size = (stim_px, stim_px)
         self.stim_pos_offset = int(self.win.size[0] * 0.2)
 
-        # Load stimulus paths from categorized directories
         self.incentives_pool = self.load_incentives()
 
-        # Input devices and audio
         self.mouse = event.Mouse(win=self.win)
-        # Warning tone (1000 Hz, 150 ms) rendered to a buffer and played via sounddevice,
-        # which is reliable on Windows (PsychoPy's audio backend can fail silently)
+
         _fs = 44100
         _t = np.linspace(0, 0.15, int(_fs * 0.15), endpoint=False)
         _tone = 0.5 * np.sin(2 * np.pi * 1000 * _t)
-        _fade = np.linspace(0, 1, int(_fs * 0.005))   # 5 ms fade in/out to avoid clicks
+        _fade = np.linspace(0, 1, int(_fs * 0.005))
         _tone[:len(_fade)] *= _fade
         _tone[-len(_fade):] *= _fade[::-1]
         self.beep_tone = _tone.astype('float32')
         self.beep_fs = _fs
-
-        # Global session clock (used for timestamps and RT measurement)
         self.global_clock = core.Clock()
-
-        # Frame-level timing constants derived from monitor refresh rate (165 Hz default)
-        # All stimulus durations are expressed in frames for sub-millisecond precision
         self.monitor_fps = 165
         self.frame_duration = 1.0 / self.monitor_fps
         self.frames_stim_min = max(1, int(round(self.stim_duration_min_s / self.frame_duration)))
@@ -236,31 +200,22 @@ class NeuroScienceSystem:
         self.frames_isi_min = max(1, int(round(self.isi_min_s / self.frame_duration)))
         self.frames_isi_max = max(1, int(round(self.isi_max_s / self.frame_duration)))
 
-        # Session data containers
-        self.session_results = []   # trial-level behavioral data
-        self.trajectory_log = []    # time-resolved mouse coordinates
+        self.session_results = []
+        self.trajectory_log = []
 
         self.current_status = "STARTUP"
-        self.base_rt = 0            # individual baseline RT from calibration (ms)
+        self.base_rt = 0
 
-        # Memory of first 10 trials for subsequent SWAP re-presentation
         self.swap_memory = []
 
-        # Tracks used stimuli to ensure uniqueness (random mode only)
         self.used_stimuli = {'positive': set(), 'negative': set(), 'neutral': set()}
 
-        # Trials where participant exceeded response window — repeated at session end
         self.missed_trials = []
 
-        # Pilot template loaded or generated at runtime
         self.pilot_template = None
 
     def show_consent(self):
-        """
-        Display the informed-consent form (in the selected language) before the
-        session begins. The participant must explicitly confirm consent to proceed;
-        the session terminates if consent is declined. No external page is opened.
-        """
+
         while True:
             consent_dlg = gui.Dlg(title=self.L['consent_title'])
             consent_dlg.addText(self.L['consent_text'])
@@ -359,8 +314,6 @@ class NeuroScienceSystem:
             }
 
             template['trials'].append(trial_data)
-
-        # Restore system randomness after template generation
         random.seed()
 
         with open(self.pilot_template_file, 'w', encoding='utf-8') as f:
@@ -442,13 +395,10 @@ class NeuroScienceSystem:
         fix = visual.TextStim(self.win, text="+", height=60, font='Arial')
 
         for i in range(1, 8):
-            # Fixation cross with jittered pre-trial delay
             fix.draw()
             self.win.flip()
             core.wait(0.5)
             core.wait(1.0 + random.random())
-
-            # Present square on randomly chosen side
             side = random.choice([-self.stim_pos_offset, self.stim_pos_offset])
             square_size = 250
             sq = visual.Rect(self.win, size=(square_size, square_size), pos=(side, 0), fillColor='gray')
@@ -509,29 +459,8 @@ class NeuroScienceSystem:
         return chosen
 
     def present_trial(self, p1, p2, t_type, n, trial_params=None):
-        """
-        Execute a single experimental trial.
-
-        Trial sequence:
-        1. Audio warning beep + fixation cross
-        2. Sequential stimulus presentation: stim1 → ISI → stim2 (frame-precise)
-        3. Blank screen response window (3.0 s)
-        4. Mouse trajectory recorded at 100 Hz until click or timeout
-
-        Parameters:
-            p1, p2      : file paths to left and right stimulus images
-            t_type      : trial type — 'NORMAL' or 'SWAP'
-            n           : trial number (used for trajectory logging)
-            trial_params: dict with pre-determined frame counts and fixation duration
-                          (from pilot template); if None, values are randomized
-
-        Returns:
-            dict with trial-level behavioral data including RT, choice, colors,
-            valence categories, and session metadata
-        """
         self.current_status = f"T_{n}_{t_type}"
 
-        # Pre-load stimulus images at fixed positions (left = -offset, right = +offset)
         img1 = visual.ImageStim(self.win, image=p1, size=self.stim_size, pos=(-self.stim_pos_offset, 0),
                                 opacity=1.0, contrast=1.0, interpolate=False)
         img2 = visual.ImageStim(self.win, image=p2, size=self.stim_size, pos=(self.stim_pos_offset, 0),
@@ -565,7 +494,6 @@ class NeuroScienceSystem:
             isi_frames = random.randint(self.frames_isi_min, self.frames_isi_max)
             stim2_frames = random.randint(self.frames_stim_min, self.frames_stim_max)
 
-        # Sequential stimulus presentation: stim1 → blank ISI → stim2 → blank
         img1.draw()
         self.win.flip()
         self.wait_frames(stim1_frames)
@@ -751,7 +679,7 @@ class NeuroScienceSystem:
                         trial_params = None
 
                     data = self.present_trial(p_l, p_r, t_type, i, trial_params)
-                    data['is_swap'] = 0  # 0 = not a SWAP trial
+                    data['is_swap'] = 0
 
                     if data['choice'] == 'left':
                         data['chosen_emo'] = cat1 if is_cat1_left else cat2
@@ -767,7 +695,6 @@ class NeuroScienceSystem:
                         })
                         print(f"⚠ Trial {i} missed — will be repeated later")
 
-                    # Store first 10 valid trials for SWAP re-presentation
                     if i <= 10 and data['choice']:
                         self.swap_memory.append({
                             'l': p_l, 'r': p_r, 'choice': data['choice']
@@ -775,7 +702,6 @@ class NeuroScienceSystem:
 
                     self.session_results.append(data)
 
-                    # Brief confirmation dot between trials
                     confirm_dot = visual.Circle(self.win, radius=5, fillColor='gray', pos=(0, 0))
                     confirm_dot.draw()
                     self.win.flip()
@@ -825,15 +751,14 @@ class NeuroScienceSystem:
                     except Exception as e:
                         print(f"ERROR in repeated trial: {e}")
 
-            # SWAP block: re-present first 10 pairs with mirrored left/right positions
-            # is_swap = 0 if participant maintained original choice, 1 if switched
+
             if self.swap_memory:
                 random.shuffle(self.swap_memory)
 
                 swap_idx = 52 if not self.missed_trials else 52 + len(self.missed_trials)
                 for old_pair in self.swap_memory:
                     try:
-                        # Mirror spatial positions
+
                         p_l, p_r = old_pair['r'], old_pair['l']
                         t_type = 'SWAP'
 
@@ -842,11 +767,10 @@ class NeuroScienceSystem:
                         if data['choice'] and old_pair['choice']:
                             old_chosen_img = old_pair['l'] if old_pair['choice'] == 'left' else old_pair['r']
                             new_chosen_img = p_l if data['choice'] == 'left' else p_r
-                            # 0 = same stimulus chosen (stable preference)
-                            # 1 = different stimulus chosen (switched)
+
                             data['is_swap'] = 0 if old_chosen_img == new_chosen_img else 1
                         else:
-                            data['is_swap'] = -1  # indeterminate (timeout in one of the trials)
+                            data['is_swap'] = -1
 
                         data['chosen_emo'] = 'swap_check'
 
@@ -865,13 +789,7 @@ class NeuroScienceSystem:
             self.finalize()
 
     def finalize(self):
-        """
-        Save all session data and close the experiment.
 
-        Writes:
-        - results.csv: trial-level behavioral data
-        - trajectories.csv: time-resolved mouse coordinates at 100 Hz
-        """
         self.current_status = "EXITING"
 
         if self.session_results:

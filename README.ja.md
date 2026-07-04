@@ -171,6 +171,7 @@ pip install pillow scipy rembg
 > Mayer, A. (2026). *The DAMP (Dynamic Affective Micro-Preference) Paradigm:
 > A Methodological and Computational Framework for Tracing Affective Choice Dynamics.*
 > プレプリント、OSF。DOI: https://doi.org/10.17605/OSF.IO/3N8JW
+> プレプリント, Zenodo. DOI: https://doi.org/10.5281/zenodo.21195647
 
 ## 免責事項
 

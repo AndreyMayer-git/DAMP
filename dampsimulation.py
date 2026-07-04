@@ -1,34 +1,3 @@
-"""
-DAMP paradigm — proof-of-concept SIMULATION. No human data is involved: every
-trajectory and index below is generated from the Section 2.2 generative model.
-The simulation serves only to demonstrate that the indices are computable and
-behave sensibly (face validity / proof of concept, in the sense of Wilson &
-Collins, 2019, "Ten simple rules for the computational modeling of behavioral
-data"). It is NOT a test of the substantive hypothesis about emotional conflict.
-
-Minimal sequential-sampling model (Ratcliff, 1978; Usher & McClelland, 2001).
-Latent decision variable x (>0 favours LEFT, <0 favours RIGHT):
-  Sequential encoding:  x1 = a*vL ;  x2 = (1-lam)*x1 - a*vR
-  Response phase:       dx = beta*(vL - vR)*dt + sigma*dW
-      beta*(vL - vR)  evaluative drift toward the higher-valence option
-      sigma*dW        constant Gaussian diffusion noise
-  Motor read-out (Sec. 2.3): cursor lateral position is the time integral of the
-  instantaneous leaning, h_t = integral_0^t tanh(x_s) ds, normalised to end at the
-  chosen target; start pinned at origin. A fast, early commitment yields a near-
-  straight diagonal (low AUC); a slow or initially mis-directed decision yields a
-  curved path (high AUC). AUC = area between the trajectory and the straight
-  start->target line.
-
-Note on DCI. Because the drift scales with |vL - vR|, this minimal model gives
-the LARGEST drift (hence the fastest, straightest path and the LOWEST AUC) to
-Positive-Negative pairs, where the valence gap is maximal. The minimal model
-therefore predicts DCI <= 0. The opposite hypothesis (Pos-Neg most conflicted,
-DCI > 0) requires an extra competition mechanism not contained here and is left
-as an empirical prediction (see the manuscript, Sections 2.2 and 7). Curved
-high-AUC example trajectories used in the figures are selected from the natural
-(noise-driven) tail of the trajectory distribution, not produced by a built-in
-conflict term.
-"""
 import numpy as np
 rng = np.random.default_rng(20260619)
 

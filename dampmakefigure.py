@@ -1,13 +1,3 @@
-"""
-Generates Figures 2-5 for the DAMP manuscript from the Section 2.2 model.
-
-Figures 4-5 are drawn from the minimal sequential-sampling model in
-dampsimulation.py. Figure 3 is an EXPLICITLY HYPOTHETICAL illustration of what a
-high-conflict trajectory would look like IF affective competition occurs: the
-minimal model does not by itself produce such excursions (it predicts DCI<=0).
-Figure 3 therefore exists only to show what the AUC index is designed to detect,
-and is labelled as hypothetical/illustrative in both the figure and the caption.
-"""
 import numpy as np, matplotlib.pyplot as plt, matplotlib as mpl, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 exec(open(os.path.join(HERE, "dampsimulation.py"), encoding="utf-8").read().split("if __name__")[0])
@@ -21,7 +11,7 @@ OUT=os.path.join(HERE, "figures"); os.makedirs(OUT, exist_ok=True)
 
 
 def hypothetical_conflict_trial(c0=12.0, tc=0.22):
-    """ILLUSTRATION ONLY. A Positive-Negative trial with an added transient pull
+    """A Positive-Negative trial with an added transient pull
     toward the aversive option (decaying competition term). This term is NOT part
     of the minimal Section 2.2 model; it is injected here solely to render a
     plausible high-conflict trajectory for Figure 3."""

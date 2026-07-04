@@ -1,14 +1,4 @@
-"""
-Simulation-based power analysis for DAMP (Wilson & Collins, 2019, rule 8). No human
-data. Question: if the affective-competition hypothesis holds (here instantiated by
-the LCA, Model 2, at gamma=0.6), how many participants are needed to detect DCI > 0
-at the group level?
 
-Method: simulate a large pool of synthetic participants once to obtain the per-
-participant DCI distribution the model implies, then bootstrap-resample experiments
-of size N and apply a one-sided one-sample t-test against DCI = 0 (alpha = 0.05).
-Power = proportion of resampled experiments that reach significance.
-"""
 import numpy as np
 from math import sqrt, erf
 import damp_lca_model as M
